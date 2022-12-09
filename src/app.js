@@ -13,9 +13,36 @@ app.set('models', sequelize.models)
  * @returns contract by id
  */
 
-app.get('/', (req, res) => {
+app.get('/', (_, res) => {
     res.send('hello world');
 })
+
+app.get('/jobs/unpaid',getProfile ,async (req, res) =>{
+    const {Contract, Job} = req.app.get('models')
+    const userId = req.profile.id
+
+    const contracts = await Job.findAll({
+        where: {
+            paid: {
+                [Op.not]: true
+            }
+        }, include: [{
+            model: Contract,
+            where: {
+                    [Op.or]: [
+                        {  clientId: userId, },
+                        { contractorId: userId }
+                    ],
+                    status: {
+                        [Op.not]: 'terminated'
+                    }
+                }
+           }]
+    })
+    if(!contracts) return res.status(404).end()
+    res.json(contracts)
+})
+
 
 app.get('/contracts',getProfile ,async (req, res) =>{
     const {Contract} = req.app.get('models')
