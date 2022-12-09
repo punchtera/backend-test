@@ -12,6 +12,55 @@ app.get('/', (_, res) => {
     res.send('hello world');
 })
 
+// 5
+app.post('/balances/deposit/:userId',getProfile ,async (req, res) => {
+    sequelize.transaction(async (t) => {
+        const {Contract, Job, Profile} = req.app.get('models')
+        const { userId } = req.params
+        const {amount} = req.body
+        
+        const jobs = await Job.findAll({
+            where: {
+                paid: {
+                    [Op.not]: true
+                }
+            }, include: [{
+                model: Contract,
+                where: {
+                        [Op.or]: [
+                            {  clientId: userId, },
+                            { contractorId: userId }
+                        ],
+                        status: {
+                            [Op.not]: 'terminated'
+                        }
+                    }
+               }]
+        , transaction: t})
+
+        if(!jobs) return res.status(404).end()
+        const totalOfJobs = 
+            jobs.reduce((acc, currentValue) => acc + currentValue.price, 0)
+
+        const MAXIMUMDEPOSITPERCENTAGE = 0.25
+        const maximumDeposit = totalOfJobs * MAXIMUMDEPOSITPERCENTAGE
+        const depositAmount = Number(amount)
+
+        if(depositAmount > maximumDeposit){
+            return res.status(404).end()
+        }
+
+        const client = await Profile.findOne({where: {id: userId}})
+        const clientBalance = client.balance
+
+        await Profile.update(
+            {balance: clientBalance + depositAmount},
+            {where: {id: userId}, transaction: t})
+        
+        res.json({message: "the deposit was successful"})
+    })
+})
+
 // 4
 app.post('/jobs/:job_id/pay',getProfile ,async (req, res) => {
     sequelize.transaction(async (t) => {
@@ -23,7 +72,7 @@ app.post('/jobs/:job_id/pay',getProfile ,async (req, res) => {
         const contract = await Contract.findOne({where : {id: job.ContractId}})
 
         if(job.paid == true){
-            res.json({message: "the job was already paid"})
+            return res.status(404).end()
         }
 
         const amountToPay = job.price
@@ -38,18 +87,18 @@ app.post('/jobs/:job_id/pay',getProfile ,async (req, res) => {
         const clientBalance = client.balance
         
         if(clientBalance < amountToPay) {
-            res.json({message: "the balance is less than the amount to paid"})
+            return res.status(404).end()
         }
         
         const contractorId = contract.ContractorId
         const contractor = await Profile.findOne({where : {id: contractorId}})
 
-        await Job.Update({paid: true}, {where: {id: job_id}, transaction: t})
-        await Profile.Update(
+        await Job.update({paid: true}, {where: {id: job_id}, transaction: t})
+        await Profile.update(
             {balance: clientBalance - amountToPay},
             {where: {id: userId}, transaction: t})
 
-        await Profile.Update(
+        await Profile.update(
             {balance: contractor.balance + amountToPay},
             {where: {id: contractorId}, transaction: t})
         
