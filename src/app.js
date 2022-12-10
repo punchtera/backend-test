@@ -12,6 +12,47 @@ app.get('/', (_, res) => {
     res.send('hello world');
 })
 
+// Example call curl http://localhost:3001/admin/best-profession\?start=2020-08-10\&end\=2020-08-14 -H "profile_id:1"
+//6
+app.get('/admin/best-profession',getProfile ,async (req, res) => {
+
+    const {Contract, Job, Profile} = req.app.get('models')
+    const start = req.query.start;
+    const end = req.query.end;
+
+    const dateRegex =/(\d{4})\-(\d{2})\-(\d{2})/
+
+    const [,startYear, startMonth, startDay ] = start.match(dateRegex)
+    const [,endYear, endMonth, endDay ] = end.match(dateRegex)
+    const startDate = new Date(startYear, startMonth, startDay)
+    const endDate = new Date(endYear, endMonth, endDay)
+
+    const jobs = await Job.findAll({
+       where: {
+        [Op.and]: [
+            {paymentDate: {
+                [Op.gt]: [startDate.toISOString()],
+            }},
+            {paymentDate: {
+                [Op.lt]: [endDate],
+            }}
+        ]
+       },
+       include: [{
+            model: Contract,
+            required: true,
+            include: [{
+                model: Profile,
+                as: "Client",
+                required: true
+            }]
+        }]
+    })
+
+    console.log('jobs', jobs)
+    res.send('response')
+})
+
 // 5
 app.post('/balances/deposit/:userId',getProfile ,async (req, res) => {
     sequelize.transaction(async (t) => {
