@@ -12,6 +12,63 @@ app.get('/', (_, res) => {
     res.send('hello world');
 })
 
+// 7
+app.get('/admin/best-clients', getProfile ,async (req, res) => {
+    const {Contract, Job, Profile} = req.app.get('models')
+    const start = req.query.start;
+    const end = req.query.end;
+    const limit = req.query.limit || 2;
+
+    console.log('limit', limit)
+    const dateRegex =/(\d{4})\-(\d{2})\-(\d{2})/
+
+    const [,startYear, startMonth, startDay ] = start.match(dateRegex)
+    const [,endYear, endMonth, endDay ] = end.match(dateRegex)
+    const startDate = new Date(startYear, startMonth, startDay)
+    const endDate = new Date(endYear, endMonth, endDay)
+
+    const jobs = await Job.findAll({
+        attributes: [
+            'price',
+            [sequelize.fn('sum', sequelize.col('price')), 'total_amount']
+        ],
+        group: ['ClientId'],
+        order: [
+            ['total_amount', 'DESC'],
+        ],
+        limit: limit,
+        where: {
+        [Op.and]: [
+            {paymentDate: {
+                [Op.gt]: [startDate.toISOString()],
+            }},
+            {paymentDate: {
+                [Op.lt]: [endDate],
+            }}
+        ]
+        },
+        include: [{
+            model: Contract,
+            required: true,
+            include: [{
+                model: Profile,
+                as: "Client",
+                required: true
+            }]
+        }]
+    })
+
+    const clients = jobs.map((job) => {
+        return {
+            id: job["Contract"]["Client"].id,
+            fullName: `${job["Contract"]["Client"].firstName} ${job["Contract"]["Client"].lastName}`,
+            paid: job["price"]
+    }
+    })
+
+    res.json(clients)
+})
+
 // Example call curl http://localhost:3001/admin/best-profession\?start=2020-08-10\&end\=2020-08-14 -H "profile_id:1"
 //6
 app.get('/admin/best-profession',getProfile ,async (req, res) => {
