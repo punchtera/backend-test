@@ -28,7 +28,15 @@ app.get('/admin/best-profession',getProfile ,async (req, res) => {
     const endDate = new Date(endYear, endMonth, endDay)
 
     const jobs = await Job.findAll({
-       where: {
+        attributes: [
+            'price',
+            [sequelize.fn('sum', sequelize.col('price')), 'total_amount']
+        ],
+        group: ['ClientId'],
+        order: [
+            ['total_amount', 'DESC'],
+        ],
+        where: {
         [Op.and]: [
             {paymentDate: {
                 [Op.gt]: [startDate.toISOString()],
@@ -37,20 +45,21 @@ app.get('/admin/best-profession',getProfile ,async (req, res) => {
                 [Op.lt]: [endDate],
             }}
         ]
-       },
-       include: [{
+        },
+        include: [{
             model: Contract,
             required: true,
             include: [{
                 model: Profile,
                 as: "Client",
+                attributes: ['profession'],
                 required: true
             }]
         }]
     })
 
-    console.log('jobs', jobs)
-    res.send('response')
+    const resultMaximumProfession = jobs[0]["Contract"]["Client"]["profession"];
+    res.json({profession: resultMaximumProfession})
 })
 
 // 5
