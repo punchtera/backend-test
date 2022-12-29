@@ -124,3 +124,11 @@ When you have finished the assignment, create a github repository and send us th
   
 
 Thank you and good luck! 🙏
+
+## current failures
+    No refactor, everything in one file.
+    Contracts and Contract by id endpoints only returning if user is the client, not also contractor.
+    Pay job transaction not included in all SELECTs (concurrency risk).
+    Deposit balance not validating input parameters (amount can be negative or invalid and return HTML error to API client).
+    Admin best profession returning incorrect profession.
+    Admin regex for date validation vs. using library
