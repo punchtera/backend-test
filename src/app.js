@@ -125,6 +125,10 @@ app.post('/balances/deposit/:userId',getProfile ,async (req, res) => {
         const {Contract, Job, Profile} = req.app.get('models')
         const { userId } = req.params
         const {amount} = req.body
+
+        if(amount < 0){
+            return res.status(404).end('the amount should not be negative.')
+        }
         
         const jobs = await Job.findAll({
             where: {
@@ -145,7 +149,9 @@ app.post('/balances/deposit/:userId',getProfile ,async (req, res) => {
                }]
         , transaction: t})
 
-        if(!jobs) return res.status(404).end()
+        if(!jobs) {
+            return res.status(404).end();
+        }
         const totalOfJobs = 
             jobs.reduce((acc, currentValue) => acc + currentValue.price, 0)
 
